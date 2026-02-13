@@ -40,14 +40,17 @@ pipeline {
         stage('Compare Accuracy') {
             steps {
                 script {
-                    def best = credentials('best-accuracy')
-                    env.IS_BETTER = sh(
-                        script: "echo ${env.CURRENT_ACCURACY} '>' ${best} | bc",
-                        returnStdout: true
-                    ).trim()
+                    withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST')]) {
+
+                        env.IS_BETTER = sh(
+                            script: "echo \"${env.CURRENT_ACCURACY} > $BEST\" | bc -l",
+                            returnStdout: true
+                        ).trim()
+                    }
                 }
             }
         }
+
 
         stage('Build Docker Image') {
             when { expression { env.IS_BETTER == '1' } }
