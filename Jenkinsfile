@@ -7,13 +7,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git credentialsId: 'git-creds',
-                    url: 'https://github.com/2022bcd0034-akhileshnekar/lab-4'
-            }
-        }
-
         stage('Setup Python') {
             steps {
                 sh '''
