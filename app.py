@@ -46,3 +46,7 @@ def predict_wine_quality(data: WineInput):
         "roll_no": "2022BCD0034",          
         "wine_quality": int(round(prediction))
     }
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

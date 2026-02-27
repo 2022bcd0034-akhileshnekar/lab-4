@@ -1,0 +1,91 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE = "akhileshnekar/ml-app:latest"
+        CONTAINER_NAME = "ml_validation_container"
+        PORT = "8000"
+    }
+
+    stages {
+
+        stage('Pull Image') {
+            steps {
+                sh '''
+                echo "Pulling Docker image..."
+                docker pull $IMAGE
+                '''
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh '''
+                echo "Starting container..."
+                docker run -d -p $PORT:8000 --name $CONTAINER_NAME $IMAGE
+                '''
+            }
+        }
+
+        stage('Wait for Service') {
+            steps {
+                sh '''
+                echo "Waiting for API to be ready..."
+                for i in {1..10}; do
+                    if curl -s http://localhost:$PORT/health; then
+                        echo "Service is up!"
+                        exit 0
+                    fi
+                    sleep 3
+                done
+                echo "Service failed to start"
+                exit 1
+                '''
+            }
+        }
+
+        stage('Valid Inference Test') {
+            steps {
+                sh '''
+                echo "Sending valid request..."
+                RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
+                  -H "Content-Type: application/json" \
+                  -d @tests/valid_input.json)
+
+                echo "Response: $RESPONSE"
+
+                echo "$RESPONSE" | jq '.prediction' > /dev/null || exit 1
+                '''
+            }
+        }
+
+        stage('Invalid Inference Test') {
+            steps {
+                sh '''
+                echo "Sending invalid request..."
+                STATUS=$(curl -s -o response.txt -w "%{http_code}" \
+                  -X POST http://localhost:$PORT/predict \
+                  -H "Content-Type: application/json" \
+                  -d @tests/invalid_input.json)
+
+                echo "HTTP Status: $STATUS"
+
+                if [ "$STATUS" -eq 200 ]; then
+                    echo "Invalid request should not return 200"
+                    exit 1
+                fi
+                '''
+            }
+        }
+
+        stage('Stop Container') {
+            steps {
+                sh '''
+                echo "Stopping container..."
+                docker stop $CONTAINER_NAME
+                docker rm $CONTAINER_NAME
+                '''
+            }
+        }
+    }
+}
