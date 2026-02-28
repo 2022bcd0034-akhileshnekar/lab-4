@@ -20,11 +20,12 @@ pipeline {
         stage('Run Container') {
             steps {
                 sh '''
+                docker rm -f $CONTAINER_NAME || true
 
                 docker run -d \
-                  -p 8000:8000 \
-                  --name $CONTAINER_NAME \
-                  $IMAGE
+                --network ml-network \
+                --name $CONTAINER_NAME \
+                $IMAGE
                 '''
             }
         }
@@ -36,7 +37,7 @@ pipeline {
 
                 for i in $(seq 1 20); do
                     STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                    http://localhost:$PORT/health)
+                    http://ml_validation_container:8000/health)
 
                     if [ "$STATUS" = "200" ]; then
                         echo "Service is up!"
@@ -56,7 +57,7 @@ pipeline {
         stage('Valid Inference Test') {
             steps {
                 sh '''
-                RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
+                RESPONSE=$(curl -s -X POST http://ml_validation_container:8000/predict \
                   -H "Content-Type: application/json" \
                   -d @tests/valid_input.json)
 
@@ -71,7 +72,7 @@ pipeline {
             steps {
                 sh '''
                 STATUS=$(curl -s -o response.txt -w "%{http_code}" \
-                  -X POST http://localhost:$PORT/predict \
+                  -X POST http://ml_validation_container:8000/predict \
                   -H "Content-Type: application/json" \
                   -d @tests/invalid_input.json)
 
