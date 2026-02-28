@@ -31,18 +31,13 @@ pipeline {
             steps {
                 sh '''
                 echo "Waiting for API to be ready..."
-
-                for i in {1..20}; do
-                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/health)
-
-                    if [ "$STATUS" = "200" ]; then
+                for i in {1..10}; do
+                    if curl -s http://localhost:$PORT/health; then
                         echo "Service is up!"
                         exit 0
                     fi
-
-                    sleep 3
+                    sleep 5
                 done
-
                 echo "Service failed to start"
                 exit 1
                 '''
