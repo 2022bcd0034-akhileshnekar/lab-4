@@ -12,7 +12,6 @@ pipeline {
         stage('Pull Image') {
             steps {
                 sh '''
-                echo "Pulling Docker image..."
                 docker pull $IMAGE
                 '''
             }
@@ -24,9 +23,9 @@ pipeline {
                 docker rm -f $CONTAINER_NAME || true
 
                 docker run -d \
-                -p 8000:8000 \
-                --name $CONTAINER_NAME \
-                $IMAGE
+                  -p 8000:8000 \
+                  --name $CONTAINER_NAME \
+                  $IMAGE
                 '''
             }
         }
@@ -34,11 +33,11 @@ pipeline {
         stage('Wait for Service') {
             steps {
                 sh '''
-                echo "Waiting for API to be ready..."
+                echo "Waiting for API..."
 
                 for i in $(seq 1 20); do
                     STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-                    http://$CONTAINER_NAME:8000/health)
+                    http://localhost:$PORT/health)
 
                     if [ "$STATUS" = "200" ]; then
                         echo "Service is up!"
@@ -49,6 +48,7 @@ pipeline {
                 done
 
                 echo "Service failed to start"
+                docker logs $CONTAINER_NAME
                 exit 1
                 '''
             }
@@ -57,7 +57,6 @@ pipeline {
         stage('Valid Inference Test') {
             steps {
                 sh '''
-                echo "Sending valid request..."
                 RESPONSE=$(curl -s -X POST http://localhost:$PORT/predict \
                   -H "Content-Type: application/json" \
                   -d @tests/valid_input.json)
@@ -72,13 +71,10 @@ pipeline {
         stage('Invalid Inference Test') {
             steps {
                 sh '''
-                echo "Sending invalid request..."
                 STATUS=$(curl -s -o response.txt -w "%{http_code}" \
                   -X POST http://localhost:$PORT/predict \
                   -H "Content-Type: application/json" \
                   -d @tests/invalid_input.json)
-
-                echo "HTTP Status: $STATUS"
 
                 if [ "$STATUS" -eq 200 ]; then
                     echo "Invalid request should not return 200"
@@ -91,7 +87,6 @@ pipeline {
         stage('Stop Container') {
             steps {
                 sh '''
-                echo "Stopping container..."
                 docker stop $CONTAINER_NAME
                 docker rm $CONTAINER_NAME
                 '''
