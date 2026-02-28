@@ -20,7 +20,6 @@ pipeline {
         stage('Run Container') {
             steps {
                 sh '''
-                docker rm -f $CONTAINER_NAME || true
 
                 docker run -d \
                   -p 8000:8000 \
